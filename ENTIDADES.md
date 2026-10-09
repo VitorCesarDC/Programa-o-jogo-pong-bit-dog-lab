@@ -1,56 +1,63 @@
-# ENTIDADES.md
+# Entidades do jogo (revisado)
 
-**Nome(s):** _(preencha com seu nome / do grupo)_
+Projeto individual — VitorCesarDC
 
-## Entidades do jogo
+## Lista de entidades
 
-- `Ball` (bola)
-- `Paddle` (raquete — mesma classe para jogador humano e IA)
-- `GameManager` (não é bem uma "entidade" de jogo; é o mediador/árbitro — ver pergunta 6)
+| Entidade | Tipo | Descrição |
+|---|---|---|
+| `Ball` | Entidade de jogo | A bola. Move-se a cada quadro e muda de direção ao colidir. |
+| `Paddle` (esquerda) | Entidade de jogo | Raquete do jogador, controlada pelo joystick. |
+| `Paddle` (direita) | Entidade de jogo | Raquete do adversário, controlada pela IA. Mesma classe da esquerda. |
+| `GameManager` | Sistema / mediador | Não é uma entidade visível; detecta colisões, controla placar e estados. |
+| Placar / HUD | Dado | Guardado no `GameManager` e desenhado pelo renderer; não tem posição nem `update()` próprio. |
+| Buzzer e LED RGB / matriz | Atuadores | Acionados por eventos (colisão, ponto, vitória); não têm comportamento próprio por quadro. |
 
 ## 1. O que se move, muda de estado ou reage a algo?
 
-- `Ball`: move-se todo frame e muda de direção ao colidir.
-- `Paddle` esquerda (joystick) e `Paddle` direita (IA): movem-se verticalmente.
+- `Ball`: move-se todo quadro e muda de direção ao colidir.
+- `Paddle` (esquerda e direita): movem-se verticalmente.
 - `GameManager`: muda de estado (Menu → Jogando → PontoMarcado → FimDeJogo) e reage a eventos (bola saiu da tela, colisão detectada).
 
-## 2. O que cada entidade sabe sobre si (propriedades)?
+## 2. Propriedades de cada entidade
 
 - `Ball`: posição `(x, y)`, velocidade `(vx, vy)`, raio, velocidade base.
-- `Paddle`: posição `(x fixo, y)`, largura, altura, velocidade, limites de tela, qual controlador usa.
+- `Paddle`: posição `(x fixo, y)`, largura, altura, velocidade, limites de tela, controlador usado.
 - `GameManager`: estado atual, placar dos dois lados, dimensões da tela, referências à bola e às raquetes.
 
-## 3. O que cada uma faz a cada quadro (comportamentos)?
+## 3. Comportamentos a cada quadro
 
-- `Ball::update(dt)`: atualiza posição; detecção de saída de tela é feita por fora (GameManager).
-- `Paddle::update(dt, ballY)`: lê o controlador (humano ou IA) e move o Y, com clamp nos limites da tela.
-- `GameManager::update(dt)`: chama o update de todas as entidades, resolve colisões, atualiza placar, decide reinício de rodada e aciona som/LED.
+- `Ball::update(dt)`: atualiza a posição (a saída de tela é detectada pelo `GameManager`).
+- `Paddle::update(dt, ballY)`: lê o controlador (humano ou IA) e move o Y, com limite nas bordas da tela.
+- `GameManager::update(dt)`: atualiza as entidades, resolve colisões, atualiza o placar, decide o reinício da rodada e aciona som/LED.
 
-## 4. O que colide com o quê? A reação é igual para todo par?
+## 4. Colisões e reações
 
-**Não.** Três pares diferentes, três reações diferentes:
+A reação **não** é igual para todo par:
 
 | Par | Reação |
 |---|---|
-| Bola x parede (topo/base) | Inverte só `vy` |
-| Bola x raquete | Inverte `vx` e ajusta `vy` conforme ponto de impacto (dá "efeito") |
-| Bola x borda lateral (fora do alcance da raquete) | **Não é colisão física** — é evento de pontuação: reseta bola, incrementa placar |
+| Bola × parede (topo/base) | Inverte só `vy` |
+| Bola × raquete | Inverte `vx` e ajusta `vy` conforme o ponto de impacto (gera "efeito") |
+| Bola × borda lateral (fora do alcance da raquete) | Não é colisão física: é evento de pontuação (reseta a bola e incrementa o placar) |
 
-Essa foi a pergunta que mais travou: perceber que "sair pela lateral" não deveria ser tratado como uma colisão igual às outras, e sim como um evento de jogo separado.
+## 5. Comunicação entre entidades
 
-## 5. Uma entidade aciona ou lê a outra direto, ou por um terceiro?
+Sempre por um terceiro: o `GameManager` detecta a colisão entre `Ball` e `Paddle` e chama os métodos de cada uma (`ball.bounceOffPaddle(...)`). Nenhuma guarda ponteiro para a outra.
 
-Por um terceiro: o `GameManager` detecta a colisão entre `Ball` e `Paddle` e chama os métodos de cada uma (`ball.bounceOffPaddle(...)`). Nenhuma das duas guarda ponteiro para a outra.
+Exceção consciente: a IA precisa da posição da bola. Isso é resolvido passando `ballY` como parâmetro em `Paddle::update(dt, ballY)`, sem a `Paddle` manter referência à `Ball`.
 
-Exceção consciente: a IA da raquete precisa da posição da bola para decidir o movimento. Isso é resolvido passando `ballY` como parâmetro em `Paddle::update(dt, ballY)`, em vez da `Paddle` manter uma referência direta à `Ball`.
+## 6. O que parece entidade mas não é
 
-## 6. Algo parece entidade, mas não se atualiza sozinho?
+- **Placar/HUD:** só dado guardado no `GameManager`.
+- **Buzzer e LED RGB:** atuadores que só executam quando o `GameManager` manda.
 
-- **Placar/HUD**: é só um dado guardado no `GameManager` e desenhado pelo renderer — não tem posição nem `update()` próprio.
-- **Buzzer e LED RGB**: são atuadores acionados por eventos (colisão, ponto), não têm comportamento próprio a cada frame; só executam quando o `GameManager` manda.
+## 7. Comportamento repetido
 
-## 7. Duas coisas repetem o mesmo comportamento?
+A raquete esquerda e a direita são a **mesma classe** `Paddle`. A única diferença é a origem do input, resolvida com a interface `IPaddleController`, com duas implementações: `HumanController` (joystick) e `AiController` (persegue a bola). Isso evita duplicar lógica de movimento e desenho.
 
-Sim — a raquete esquerda e a direita são a **mesma classe** `Paddle`. A única diferença é de onde vem o input, resolvida com uma interface `IPaddleController` (estratégia), com duas implementações: `HumanController` (lê o joystick) e `AiController` (persegue a bola). Isso evitou duplicar a lógica de movimento e desenho em duas classes separadas.
+As colisões com a parede do topo e da base também têm o mesmo comportamento (inverter `vy`) e usam uma única checagem.
 
-Também a colisão bola-parede-topo e bola-parede-base têm o mesmo comportamento (inverter `vy`), tratadas por uma única checagem, sem duplicação.
+## Reflexão
+
+A pergunta que mais travou foi perceber que "sair pela lateral" não deve ser tratado como colisão igual às outras, e sim como um evento de jogo separado.
