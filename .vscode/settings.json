@@ -1,0 +1,8 @@
+{
+  "cmake.generator": "Ninja",
+  "cmake.configureSettings": {
+    "PICO_SDK_PATH": "C:/Users/vitor/.pico-sdk/sdk/2.3.1",
+    "PICO_TOOLCHAIN_PATH": "C:/Users/vitor/.pico-sdk/toolchain/13_3_Rel1",
+    "CMAKE_MAKE_PROGRAM": "C:/Users/vitor/.pico-sdk/ninja/v1.13.2/ninja.exe"
+  }
+}

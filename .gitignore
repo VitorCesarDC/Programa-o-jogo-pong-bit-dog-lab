@@ -1,0 +1,20 @@
+﻿# Build directory
+build/
+bin/
+*.uf2
+*.elf
+*.bin
+*.hex
+*.map
+*.dis
+*.d
+*.obj
+*.o
+
+# Ninja
+.ninja_*
+ninja.build
+
+# VS Code (ignore workspace storage, keep settings)
+.vscode/*
+!.vscode/settings.json
