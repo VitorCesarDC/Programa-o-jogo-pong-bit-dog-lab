@@ -2,6 +2,15 @@
 #include <cmath>
 #include <algorithm>
 
+namespace {
+    // A cada rebatida na raquete, a bola acelera um pouco (sensação clássica
+    // de Pong), até um teto — assim o rali fica mais tenso sem o jogo virar
+    // impossível de acompanhar. A velocidade volta ao normal em reset()
+    // (início de cada rali), então a aceleração nunca "acumula" entre pontos.
+    constexpr float SPEED_INCREASE_FACTOR = 1.05f;
+    constexpr float MAX_SPEED_MULTIPLIER = 1.8f;
+}
+
 Ball::Ball(float startX, float startY, float radius, float speed)
     : x_(startX), y_(startY), vx_(speed), vy_(0.0f),
       radius_(radius), baseSpeed_(speed) {}
@@ -39,6 +48,10 @@ void Ball::bounceOffPaddle(float paddleCenterY, float paddleHalfHeight) {
 
     float speed = std::sqrt(vx_ * vx_ + vy_ * vy_);
     if (speed < baseSpeed_) speed = baseSpeed_;
+
+    // Acelera um pouco a cada rebatida, respeitando o teto máximo.
+    float maxSpeed = baseSpeed_ * MAX_SPEED_MULTIPLIER;
+    speed = std::min(speed * SPEED_INCREASE_FACTOR, maxSpeed);
 
     vy_ = offset * speed * 0.75f;
     vx_ = (vx_ > 0 ? 1.0f : -1.0f) * std::sqrt(std::max(0.0f, speed * speed - vy_ * vy_));

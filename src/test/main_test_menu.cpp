@@ -4,7 +4,7 @@
 //
 // Navegação: joystick pra cima/baixo move a seleção; botão A dispara
 // o efeito selecionado. Usa exatamente a mesma CelebrationEffects do
-// jogo real — nada duplicado.
+// jogo real, chamando onGameEvent() diretamente — nada duplicado.
 // ============================================================
 
 #include "pico/stdlib.h"
@@ -15,6 +15,7 @@
 #include "hal/RgbLedOutput.h"
 #include "hal/NeoMatrixOutput.h"
 #include "hal/CelebrationEffects.h"
+#include "game/GameEvent.h"
 #include <cstdio>
 #include "../include/PinConfig.h"
 
@@ -116,8 +117,9 @@ int main() {
             drawMenu(selected, justTriggered); // feedback imediato no display
 
             // Dispara o efeito de verdade — LED, buzzer e/ou matriz,
-            // dependendo do evento escolhido.
-            effects.trigger(MENU_ITEMS[selected].event);
+            // dependendo do evento escolhido. Mesma chamada que o
+            // GameManager faria num observador real (onGameEvent).
+            effects.onGameEvent(MENU_ITEMS[selected].event);
 
             justTriggered = false;
             drawMenu(selected, justTriggered);

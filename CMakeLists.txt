@@ -39,6 +39,7 @@ add_executable(pong_bitdoglab
     src/main.cpp
     ${SHARED_SOURCES}
     src/game/GameManager.cpp
+    src/game/DifficultyMenu.cpp
     # Adicione aqui o(s) arquivo(s) .c/.cpp da lib ssd1306 do curso, ex.:
     # libs/ssd1306/ssd1306.c
 )

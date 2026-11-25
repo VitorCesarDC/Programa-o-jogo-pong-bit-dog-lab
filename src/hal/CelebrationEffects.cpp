@@ -9,7 +9,9 @@ namespace Notes {
 }
 using namespace Notes;
 
-void CelebrationEffects::trigger(GameEvent event) {
+// Implementação de IGameEventListener — ponto único de entrada chamado
+// pelo GameManager::notify() (jogo real) ou pelo menu de teste sintético.
+void CelebrationEffects::onGameEvent(GameEvent event) {
     switch (event) {
         case GameEvent::Collision:       playCollision();      break;
         case GameEvent::GoalFor:         playGoalFor();        break;

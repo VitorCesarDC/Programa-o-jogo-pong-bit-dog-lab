@@ -21,22 +21,14 @@ public:
         pwm_set_enabled(slice_, false);
     }
 
-    // Toca um beep bloqueante e simples. Para não travar o game loop em
-    // jogos mais exigentes, isso pode virar uma fila de eventos não
-    // bloqueante — aqui mantido simples por ser um projeto didático.
+    // Toca um beep bloqueante com duty cycle de 50%. Para não travar o
+    // game loop em jogos mais exigentes, isso pode virar uma fila de
+    // eventos não bloqueante — aqui mantido simples por ser um projeto
+    // didático (os efeitos só tocam em momentos em que o jogo já está
+    // "pausado": colisão é curtíssima, gol/vitória/derrota são pausas
+    // esperadas entre rodadas).
     void playBeep(uint32_t freqHz, uint32_t durationMs) {
-        uint32_t clock = 125000000;
-        uint32_t divider16 = clock / freqHz / 4096 + 1;
-        if (divider16 / 16 == 0) divider16 = 16;
-        pwm_set_clkdiv(slice_, static_cast<float>(divider16) / 16.0f);
-
-        uint32_t wrap = clock * 16 / divider16 / freqHz - 1;
-        pwm_set_wrap(slice_, wrap);
-        pwm_set_gpio_level(PIN_BUZZER, wrap / 2); // 50% duty
-
-        pwm_set_enabled(slice_, true);
-        sleep_ms(durationMs);
-        pwm_set_enabled(slice_, false);
+        playBeepWithDuty(freqHz, durationMs, 0.5f);
     }
 
     // Toca um beep "suave": duty cycle baixo em vez de 50%, e curto.
@@ -46,8 +38,6 @@ public:
     }
 
     // Toca uma sequência de notas, uma após a outra (bloqueante).
-    // Bom o bastante aqui pois todo disparo acontece em um momento em que
-    // o jogo já está "pausado" (ponto marcado, fim de partida).
     void playMelody(const Note* notes, size_t count) {
         for (size_t i = 0; i < count; ++i) {
             if (notes[i].freqHz == 0) {
@@ -60,7 +50,19 @@ public:
     }
 
 private:
+    // Único lugar que calcula o divisor/wrap do PWM a partir de uma
+    // frequência (antes isso estava duplicado em playBeep e numa função
+    // separada). freqHz == 0 é tratado como "fica em silêncio pela
+    // duração pedida" em vez de causar divisão por zero — importante
+    // porque notas de pausa (REST) às vezes são indexadas manualmente
+    // em arrays de melodia (ver CelebrationEffects::playVictory/playDefeat)
+    // em vez de passar por playMelody().
     void playBeepWithDuty(uint32_t freqHz, uint32_t durationMs, float duty) {
+        if (freqHz == 0) {
+            sleep_ms(durationMs);
+            return;
+        }
+
         uint32_t clock = 125000000;
         uint32_t divider16 = clock / freqHz / 4096 + 1;
         if (divider16 / 16 == 0) divider16 = 16;

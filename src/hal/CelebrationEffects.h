@@ -2,29 +2,20 @@
 #include "BuzzerOutput.h"
 #include "RgbLedOutput.h"
 #include "NeoMatrixOutput.h"
+#include "../game/GameEvent.h"
+#include "../game/IGameEventListener.h"
 
-// Enum de todos os eventos que têm efeito sonoro/visual associado.
-// Usado tanto pelo GameManager real quanto pelo menu de teste — a MESMA
-// função dispara o efeito nos dois lugares (nada duplicado).
-enum class GameEvent {
-    Collision,        // bola bate em parede/raquete
-    GoalFor,           // jogador marca
-    GoalAgainst,        // adversário marca
-    HatTrickFor,        // jogador faz 3 seguidos
-    HatTrickAgainst,     // adversário faz 3 seguidos
-    Victory,
-    Defeat
-};
-
-// Concentra TODOS os efeitos de LED/buzzer/matriz num só lugar. Nem o
-// GameManager nem o menu de teste precisam saber frequências, cores ou
-// PWM — só chamam trigger(evento).
-class CelebrationEffects {
+// Concentra TODOS os efeitos de LED/buzzer/matriz num só lugar, e é o
+// ÚNICO ponto do projeto que conhece frequências, cores e PWM. Implementa
+// IGameEventListener para poder se registrar no GameManager como um
+// observador comum — o GameManager não sabe (e não precisa saber) que
+// esta classe existe; só conhece a interface.
+class CelebrationEffects : public IGameEventListener {
 public:
     CelebrationEffects(BuzzerOutput& buzzer, RgbLedOutput& led, NeoMatrixOutput& matrix)
         : buzzer_(buzzer), led_(led), matrix_(matrix) {}
 
-    void trigger(GameEvent event);
+    void onGameEvent(GameEvent event) override;
 
 private:
     void playCollision();

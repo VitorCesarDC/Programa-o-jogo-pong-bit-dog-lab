@@ -6,8 +6,10 @@
 #include "entities/HumanController.h"
 #include "entities/AiController.h"
 #include "game/GameManager.h"
+#include "game/DifficultyMenu.h"
 #include "hal/DisplayDriver.h"
 #include "hal/JoystickInput.h"
+#include "hal/ButtonInput.h"
 #include "hal/BuzzerOutput.h"
 #include "hal/RgbLedOutput.h"
 #include "hal/NeoMatrixOutput.h"
@@ -25,36 +27,46 @@ int main() {
     // --- Inicialização do hardware (HAL) ---
     DisplayDriver display;
     JoystickInput joystick;
+    ButtonInput buttonA(PIN_BTN_A);
     BuzzerOutput buzzer;
     RgbLedOutput led;
     NeoMatrixOutput matrix;
 
     display.init();
     joystick.init();
+    buttonA.init();
     buzzer.init();
     led.init();
     matrix.init();
 
     CelebrationEffects effects(buzzer, led, matrix);
 
+    // --- Tela de seleção de dificuldade (bloqueante, roda uma única vez) ---
+    Difficulty chosenDifficulty = runDifficultyMenu(joystick, buttonA);
+    DifficultyParams difficultyParams = getDifficultyParams(chosenDifficulty);
+
     // --- Criação das entidades ---
     HumanController humanController(&joystick);
-    AiController aiController;
+    AiController aiController(difficultyParams.aiDeadZone, difficultyParams.aiResponsiveness);
 
     const float paddleWidth = 4.0f, paddleHeight = 16.0f;
     const float playerSpeed = 90.0f;
-    const float aiSpeed = 34.0f;
 
     Paddle leftPaddle(6.0f, SCREEN_HEIGHT / 2.0f, paddleWidth, paddleHeight,
                        playerSpeed, &humanController, SCREEN_HEIGHT);
 
     Paddle rightPaddle(SCREEN_WIDTH - 6.0f, SCREEN_HEIGHT / 2.0f, paddleWidth,
-                        paddleHeight, aiSpeed, &aiController, SCREEN_HEIGHT);
+                        paddleHeight, difficultyParams.aiSpeed, &aiController, SCREEN_HEIGHT);
 
     Ball ball(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f, 2.5f, 60.0f);
 
-    GameManager game(ball, leftPaddle, rightPaddle, effects,
-                      SCREEN_WIDTH, SCREEN_HEIGHT);
+    GameManager game(ball, leftPaddle, rightPaddle, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    // CelebrationEffects se registra como observador — o GameManager não
+    // sabe (e não precisa saber) que ela existe; só conhece
+    // IGameEventListener (padrão Observer). Dá pra registrar mais de um
+    // observador aqui no futuro (ex.: um que só loga eventos por USB).
+    game.addListener(&effects);
 
     // --- Game loop com passo de tempo fixo ---
     constexpr float FIXED_DT = 1.0f / 60.0f; // 60 "updates" lógicos por segundo

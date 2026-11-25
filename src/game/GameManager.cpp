@@ -2,13 +2,37 @@
 #include <cmath>
 
 GameManager::GameManager(Ball& ball, Paddle& leftPaddle, Paddle& rightPaddle,
-                          CelebrationEffects& effects,
                           float screenWidth, float screenHeight)
     : ball_(ball), leftPaddle_(leftPaddle), rightPaddle_(rightPaddle),
-      effects_(effects),
       screenWidth_(screenWidth), screenHeight_(screenHeight) {}
 
+void GameManager::addListener(IGameEventListener* listener) {
+    if (listener && listenerCount_ < MAX_LISTENERS) {
+        listeners_[listenerCount_++] = listener;
+    }
+}
+
+void GameManager::notify(GameEvent event) {
+    for (int i = 0; i < listenerCount_; ++i) {
+        listeners_[i]->onGameEvent(event);
+    }
+}
+
 void GameManager::update(float dt) {
+    if (state_ == GameState::PointScored) {
+        // Bola e placar já estão no estado pós-gol; só aguarda a pausa
+        // passar antes de voltar a jogar. As raquetes continuam
+        // respondendo normalmente (mais natural do que congelar tudo).
+        leftPaddle_.update(dt, ball_.getY());
+        rightPaddle_.update(dt, ball_.getY());
+
+        pointPauseRemaining_ -= dt;
+        if (pointPauseRemaining_ <= 0.0f) {
+            state_ = GameState::Playing;
+        }
+        return;
+    }
+
     if (state_ != GameState::Playing) return;
 
     ball_.update(dt);
@@ -19,7 +43,7 @@ void GameManager::update(float dt) {
     if ((ball_.getY() - ball_.getRadius() <= 0 && ball_.getVy() < 0) ||
         (ball_.getY() + ball_.getRadius() >= screenHeight_ && ball_.getVy() > 0)) {
         ball_.bounceOffWallVertical();
-        effects_.trigger(GameEvent::Collision);
+        notify(GameEvent::Collision);
     }
 
     checkCollisions();
@@ -35,10 +59,10 @@ void GameManager::checkCollisions() {
 
     if (collidesWith(leftPaddle_) && ball_.getVx() < 0) {
         ball_.bounceOffPaddle(leftPaddle_.getY(), leftPaddle_.getHeight() / 2.0f);
-        effects_.trigger(GameEvent::Collision); // som suave, igual ao de parede
+        notify(GameEvent::Collision); // som suave, igual ao de parede
     } else if (collidesWith(rightPaddle_) && ball_.getVx() > 0) {
         ball_.bounceOffPaddle(rightPaddle_.getY(), rightPaddle_.getHeight() / 2.0f);
-        effects_.trigger(GameEvent::Collision);
+        notify(GameEvent::Collision);
     }
 }
 
@@ -53,14 +77,20 @@ void GameManager::checkScoring() {
         scoreLeft_++;
         registerGoal(true); // jogador marcou
         startNewRound(-1);
+    } else {
+        return; // ninguém marcou neste frame
     }
 
     if (scoreLeft_ >= WINNING_SCORE) {
         state_ = GameState::GameOver;
-        effects_.trigger(GameEvent::Victory);
+        notify(GameEvent::Victory);
     } else if (scoreRight_ >= WINNING_SCORE) {
         state_ = GameState::GameOver;
-        effects_.trigger(GameEvent::Defeat);
+        notify(GameEvent::Defeat);
+    } else {
+        // Partida continua: só uma pausa curta antes do próximo rali.
+        state_ = GameState::PointScored;
+        pointPauseRemaining_ = POINT_PAUSE_SECONDS;
     }
 }
 
@@ -78,9 +108,9 @@ void GameManager::registerGoal(bool playerScored) {
     bool isHatTrick = (streak_ == HAT_TRICK_STREAK);
 
     if (playerScored) {
-        effects_.trigger(isHatTrick ? GameEvent::HatTrickFor : GameEvent::GoalFor);
+        notify(isHatTrick ? GameEvent::HatTrickFor : GameEvent::GoalFor);
     } else {
-        effects_.trigger(isHatTrick ? GameEvent::HatTrickAgainst : GameEvent::GoalAgainst);
+        notify(isHatTrick ? GameEvent::HatTrickAgainst : GameEvent::GoalAgainst);
     }
 
     // Depois do hat-trick, a contagem reinicia — o próximo gol do mesmo
